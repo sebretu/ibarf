@@ -112,14 +112,15 @@ const GuestCalculator = ({ token }) => {
                 const all = res.data;
                 setMeats(all.filter(i => i.category === 'Mieso' && (i.calcium || 0) < 200));
                 setVegs(all.filter(i => i.category === 'Warzywa'));
-                // Bone-in meats: calcium >= 200 mg/100g or name contains bone keywords
-                setBoneMeats(all.filter(i => {
-                    if (i.category !== 'Mieso') return false;
-                    const n = (i.name || '').toLowerCase();
-                    return n.includes('kośćmi') || n.includes('z kość') ||
-                        n.includes('szyjk') || n.includes('skrzydełk') ||
-                        n.includes('grzbiet') || n.includes('tuszka');
-                }));
+                // Restricted list of bone-in meats
+                const allowedBoneMeats = [
+                    'Kurczak grzbiet (ze skórą i kośćmi)',
+                    'Kurczak pierś (ze skórą i kośćmi)',
+                    'Kurczak skrzydełka całe',
+                    'Kurczak szyjka z kośćmi',
+                    'Kurczak udo ze skórą i kośćmi'
+                ];
+                setBoneMeats(all.filter(i => allowedBoneMeats.includes(i.name)));
             } catch (e) {
                 console.error(e);
             } finally {
@@ -771,8 +772,8 @@ const GuestCalculator = ({ token }) => {
                                         if (addedWater > 0.5) {
                                             return (
                                                 <div className="mt-3 flex items-center gap-2 bg-blue-500/10 border border-blue-400/20 rounded-xl px-4 py-2">
-                                                    <span className="text-[9px] font-black uppercase tracking-widest text-blue-300 opacity-70">Dodaj wodę</span>
-                                                    <span className="text-base font-black text-blue-300">{addedWater.toLocaleString('pl-PL', {maximumFractionDigits: 0})} <span className="text-[10px] font-bold opacity-60">g</span></span>
+                                                    <span className="text-[9px] font-black uppercase tracking-widest text-blue-500 opacity-90">Dodaj wodę</span>
+                                                    <span className="text-base font-black text-blue-500">{addedWater.toLocaleString('pl-PL', {maximumFractionDigits: 0})} <span className="text-[10px] font-bold opacity-60">g</span></span>
                                                 </div>
                                             );
                                         }

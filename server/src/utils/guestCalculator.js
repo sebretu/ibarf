@@ -75,11 +75,26 @@ function computeDose(ingredient, nutrientKey, currentMeatTotal, currentItems, is
         target = totalPhosphorus * 1.15;
     }
 
+    if (nutrientKey === 'sodium') {
+        let totalPotassium = 0;
+        currentItems.forEach(item => {
+            const ing = item.ingredient;
+            if (ing && ing.potassium) {
+                const itemCapsule = ing.name.toLowerCase().includes('kapsułk') || ing.name.toLowerCase().includes('tablet');
+                totalPotassium += itemCapsule ? (ing.potassium * item.amount) : (ing.potassium * item.amount / 100);
+            }
+        });
+        // Sód jest ważniejszy niż proporcja, więc celujemy w min. 100% normy (70mg)
+        // ale jeśli potasu jest bardzo dużo, zwiększamy sód do proporcji 1.5
+        const absoluteNorm = (currentMeatTotal / 25) * (NORMS.sodium || 70);
+        const ratioTarget = totalPotassium / 1.5;
+        target = Math.max(absoluteNorm, ratioTarget);
+    }
+
     let currentLevel = 0;
 
-    // In the guest calculator we always count ALL items (base meat + supplements)
-    // for computing current levels. This avoids over-supplementing because
-    // base meat already contributes iron, vitD, vitA etc.
+    // Liczymy zawartość składników ze WSZYSTKICH źródeł (mięso, krew, podroby, suplementy)
+    // aby dokładnie oszacować braki i uniknąć przedawkowania.
     currentItems.forEach(item => {
         const ing = item.ingredient;
         if (ing && ing[nKey]) {
