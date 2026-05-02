@@ -1,0 +1,108 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id                String          @id @default(uuid())
+  email             String          @unique
+  password          String
+  acceptedTermsAt   DateTime?
+  acceptedPrivacyAt DateTime?
+  createdAt         DateTime        @default(now())
+  magazineStocks    MagazineStock[]
+  recipes           Recipe[]
+}
+
+model Cat {
+  id     String @id @default(uuid())
+  name   String
+  weight Float
+  userId String
+}
+
+model Ingredient {
+  id                String         @id @default(uuid())
+  category          String
+  name              String         @unique
+  energy            Float          @default(0)
+  protein           Float          @default(0)
+  fat               Float          @default(0)
+  water             Float          @default(0)
+  carbohydrates     Float          @default(0)
+  fiber             Float          @default(0)
+  ash               Float          @default(0)
+  calcium           Float          @default(0)
+  phosphorus        Float          @default(0)
+  magnesium         Float          @default(0)
+  sodium            Float          @default(0)
+  potassium         Float          @default(0)
+  chloride          Float          @default(0)
+  iron              Float          @default(0)
+  zinc              Float          @default(0)
+  copper            Float          @default(0)
+  manganese         Float          @default(0)
+  iodine            Float          @default(0)
+  selenium          Float          @default(0)
+  taurine           Float          @default(0)
+  vitaminA          Float          @default(0)
+  vitaminD          Float          @default(0)
+  vitaminE          Float          @default(0)
+  vitaminK          Float          @default(0)
+  vitaminB1         Float          @default(0)
+  vitaminB2         Float          @default(0)
+  vitaminB3         Float          @default(0)
+  vitaminB5         Float          @default(0)
+  vitaminB6         Float          @default(0)
+  vitaminB7         Float          @default(0)
+  vitaminB9         Float          @default(0)
+  vitaminB12        Float          @default(0)
+  vitaminC          Float          @default(0)
+  omega6Linoleic    Float          @default(0)
+  omega6Arachidonic Float          @default(0)
+  description       String?
+  magazineStocks    MagazineStock?
+  recipeItems       RecipeItem[]
+}
+
+model Recipe {
+  id          String       @id @default(uuid())
+  name        String
+  userId      String
+  catWeight   Float
+  meatWeight  Float        @default(0)
+  totalWeight Float        @default(0)
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  user        User         @relation(fields: [userId], references: [id])
+  items       RecipeItem[]
+}
+
+model RecipeItem {
+  id           String     @id @default(uuid())
+  recipeId     String
+  ingredientId String
+  amount       Float
+  ingredient   Ingredient @relation(fields: [ingredientId], references: [id])
+  recipe       Recipe     @relation(fields: [recipeId], references: [id], onDelete: Cascade)
+}
+
+model Settings {
+  id             Int    @id @default(1)
+  landingVariant String @default("zen")
+}
+
+model MagazineStock {
+  id           String     @id @default(uuid())
+  ingredientId String     @unique
+  amount       Float      @default(0)
+  userId       String
+  ingredient   Ingredient @relation(fields: [ingredientId], references: [id])
+  user         User       @relation(fields: [userId], references: [id])
+
+  @@unique([ingredientId, userId])
+}
