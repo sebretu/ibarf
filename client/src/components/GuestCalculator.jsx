@@ -92,12 +92,14 @@ const SearchableSelect = ({ value, onChange, options, placeholder }) => {
 const GuestCalculator = ({ token }) => {
     const [loadingIngredients, setLoadingIngredients] = useState(true);
     const [meats, setMeats] = useState([]);
+    const [boneMeats, setBoneMeats] = useState([]);
     const [vegs, setVegs] = useState([]);
 
     const [catWeight, setCatWeight] = useState('');
     const [activity, setActivity] = useState('średnia');
     const [days, setDays] = useState('');
     const [meatIds, setMeatIds] = useState(['']);
+    const [boneMeatIds, setBoneMeatIds] = useState(['']);
     const [vegId, setVegId] = useState('');
 
     const [loadingGenerate, setLoadingGenerate] = useState(false);
@@ -108,8 +110,16 @@ const GuestCalculator = ({ token }) => {
             try {
                 const res = await axios.get('/api/ingredients');
                 const all = res.data;
-                setMeats(all.filter(i => i.category === 'Mieso'));
+                setMeats(all.filter(i => i.category === 'Mieso' && (i.calcium || 0) < 200));
                 setVegs(all.filter(i => i.category === 'Warzywa'));
+                // Bone-in meats: calcium >= 200 mg/100g or name contains bone keywords
+                setBoneMeats(all.filter(i => {
+                    if (i.category !== 'Mieso') return false;
+                    const n = (i.name || '').toLowerCase();
+                    return n.includes('kośćmi') || n.includes('z kość') ||
+                        n.includes('szyjk') || n.includes('skrzydełk') ||
+                        n.includes('grzbiet') || n.includes('tuszka');
+                }));
             } catch (e) {
                 console.error(e);
             } finally {
@@ -128,7 +138,9 @@ const GuestCalculator = ({ token }) => {
         setLoadingGenerate(true);
         try {
             const res = await axios.post('/api/guest-calculator/generate', {
-                catWeight, activity, days, meatIds: validMeatIds, vegetableId: vegId
+                catWeight, activity, days, meatIds: validMeatIds,
+                boneMeatIds: boneMeatIds.filter(id => id !== ''),
+                vegetableId: vegId
             });
             setResult({ ...res.data, name: 'Przepis Szybki BARF', createdAt: new Date() });
             
@@ -531,6 +543,43 @@ const GuestCalculator = ({ token }) => {
                             <Plus size={14} /> Dodaj kolejne mięso
                         </button>
                     </div>
+
+                    <div className="flex flex-col gap-3 mt-4">
+                        <label className="text-[10px] font-black uppercase tracking-[0.2em] text-ui-text/50 ml-2">
+                            🦴 Mięso z Kością
+                        </label>
+                        {boneMeatIds.map((id, idx) => (
+                            <div key={idx} className="flex items-center gap-2 mb-2">
+                                <SearchableSelect
+                                    value={id}
+                                    onChange={(v) => {
+                                        const newArr = [...boneMeatIds];
+                                        newArr[idx] = v;
+                                        setBoneMeatIds(newArr);
+                                    }}
+                                    options={boneMeats}
+                                    placeholder={loadingIngredients ? "Ładowanie..." : "Wybierz mięso z kością (np. szyjka kurczaka)"}
+                                />
+                                {idx > 0 && (
+                                    <button
+                                        onClick={() => setBoneMeatIds(boneMeatIds.filter((_, i) => i !== idx))}
+                                        className="w-12 h-12 shrink-0 flex items-center justify-center bg-red-500/10 text-red-500 rounded-xl hover:bg-red-500 hover:text-white transition-all ml-2"
+                                    >
+                                        <X size={16} />
+                                    </button>
+                                )}
+                            </div>
+                        ))}
+                        {boneMeatIds.some(id => id !== '') && (
+                            <button
+                                onClick={() => setBoneMeatIds([...boneMeatIds, ''])}
+                                className="bg-ui-text/5 text-ui-text py-3 rounded-xl font-bold text-[10px] uppercase tracking-widest hover:bg-ui-accent/10 transition-all flex items-center justify-center gap-2 mt-1"
+                            >
+                                <Plus size={14} /> Dodaj kolejne mięso z kością
+                            </button>
+                        )}
+                    </div>
+
                     <div className="flex flex-col gap-3 mt-4">
                         <label className="text-[10px] font-black uppercase tracking-[0.2em] text-ui-text/50 ml-2">Dodatek Roślinny (Błonnik)</label>
                         <SearchableSelect

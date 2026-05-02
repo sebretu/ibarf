@@ -136,7 +136,7 @@ function computeDose(ingredient, nutrientKey, currentMeatTotal, currentItems, is
     return parseFloat(amountCalculated.toFixed(2));
 }
 
-async function generateGuestRecipe(catWeight, activity, days, meatIds, vegetableId) {
+async function generateGuestRecipe(catWeight, activity, days, meatIds, vegetableId, boneMeatIds = []) {
     let activityFactor = 1.0;
     if (activity === 'niska') activityFactor = 0.8;
     if (activity === 'wysoka') activityFactor = 1.2;
@@ -172,11 +172,31 @@ async function generateGuestRecipe(catWeight, activity, days, meatIds, vegetable
     
     if (ings.vegetable) items.push({ ingredient: ings.vegetable, amount: parseFloat((totalMeat * 0.10).toFixed(2)), isBase: true });
 
-    // Yolk rule: 1 yolk per 1kg of meat. 1 yolk ≈ 17g actual weight
+    // ---- BONE-IN MEATS (user selected, optional) ----
+    // Standard ratio: 15% of total meat comes from bone-in sources
+    let boneItems = [];
+    if (boneMeatIds && boneMeatIds.length > 0) {
+        const allIngredients = await prisma.ingredient.findMany({ where: { id: { in: boneMeatIds } } });
+        const perBone = (totalMeat * 0.15) / allIngredients.length;
+        allIngredients.forEach(boneIng => {
+            if (boneIng) {
+                const amt = parseFloat(perBone.toFixed(2));
+                items.push({ ingredient: boneIng, amount: amt, isBase: true });
+                boneItems.push({ ingredient: boneIng, amount: amt });
+            }
+        });
+    }
+
+    // Compute effective total meat for supplement dosing
+    // Bone-in meat adds to the recipe's meatWeight, so supplements must cover that extra weight too
+    const boneTotal = boneItems.reduce((sum, b) => sum + b.amount, 0);
+    const effectiveTotalMeat = totalMeat + boneTotal;
+
+    // Yolk rule: 1 yolk per 1kg of meat (effective). 1 yolk ≈ 17g actual weight
     // Store yolkCount so we can report it as SZT in the return value
     let yolkCount = 0;
     if (ings.yolk) {
-        yolkCount = Math.round(totalMeat / 1000);
+        yolkCount = Math.round(effectiveTotalMeat / 1000);
         const yolkAmount = yolkCount * 17;
         items.push({ ingredient: { ...ings.yolk, _yolkCount: yolkCount }, amount: parseFloat(yolkAmount.toFixed(2)), isBase: true });
     }
@@ -195,9 +215,16 @@ async function generateGuestRecipe(catWeight, activity, days, meatIds, vegetable
         { key: 'calcium', ing: ings.skorupki, isCalcium: true }
     ];
 
-    sequence.forEach(step => {
+    // If bone-in meats provide enough calcium (>= 80% of norm), skip skorupki supplement
+    const caFromBones = boneItems.reduce((sum, b) => sum + ((b.ingredient.calcium || 0) * b.amount / 100), 0);
+    const caNorm = (effectiveTotalMeat / 25) * (NORMS.calcium || 81.5);
+    const sequenceFinal = caFromBones >= caNorm * 0.80
+        ? sequence.filter(s => s.key !== 'calcium')
+        : sequence;
+
+    sequenceFinal.forEach(step => {
         if (!step.ing) return;
-        const dose = computeDose(step.ing, step.key, totalMeat, items, step.isCalcium);
+        const dose = computeDose(step.ing, step.key, effectiveTotalMeat, items, step.isCalcium);
         if (dose > 0) {
             items.push({ ingredient: step.ing, amount: dose, isBase: false });
         }

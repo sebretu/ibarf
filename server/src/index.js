@@ -76,8 +76,8 @@ app.get('/api/ingredients', async (req, res) => {
 // --- RECIPES ---
 app.post('/api/guest-calculator/generate', async (req, res) => {
     try {
-        const { catWeight, activity, days, meatIds, vegetableId } = req.body;
-        const result = await generateGuestRecipe(parseFloat(catWeight), activity, parseInt(days), meatIds, vegetableId);
+        const { catWeight, activity, days, meatIds, vegetableId, boneMeatIds } = req.body;
+        const result = await generateGuestRecipe(parseFloat(catWeight), activity, parseInt(days), meatIds, vegetableId, boneMeatIds || []);
         res.json(result);
     } catch (e) {
         console.error('Guest generation error:', e);
